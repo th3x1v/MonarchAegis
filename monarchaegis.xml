@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Container version="2">
+  <Name>MonarchAegis</Name>
+  <Repository>cthexiv/monarchaegis:latest</Repository>
+  <Registry>https://hub.docker.com/r/cthexiv/monarchaegis/</Registry>
+  <Network>bridge</Network>
+  <Shell>bash</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/Th3X1V/MonarchAegis</Support>
+  <Project>https://github.com/Th3X1V/MonarchAegis</Project>
+  <Overview>Self-hosted, containerized P2P file replication over SSH/rsync (plus an integrity-checked tar-stream transport) with a web control plane. MonarchAegis keeps an authoritative SQLite catalog of file fingerprints for fast diffs and confines every transfer to a directory-scoped, write-only SSH jail.</Overview>
+  <Category>Backup: Network: WebBoard:</Category>
+  <WebUI>http://[IP]:[PORT:5000]/</WebUI>
+  <TemplateURL>https://raw.githubusercontent.com/Th3X1V/MonarchAegis/main/monarchaegis.xml</TemplateURL>
+  <Icon>https://raw.githubusercontent.com/Th3X1V/MonarchAegis/main/app/static/favicon.png</Icon>
+  <ExtraParams>--restart unless-stopped</ExtraParams>
+  <Description>MonarchAegis is a fast, specialized P2P synchronizer designed for environments where traditional indexing is too slow. It relies on a Source container and a Client container pairing natively over SSH/rsync using auto-generated directory-scoped SSH keys.</Description>
+
+  <!-- Ports -->
+  <Config Name="WebGUI Port" Target="5000" Default="5000" Mode="tcp" Description="The port used to access the MonarchAegis web interface. Container Port: 5000" Type="Port" Display="always" Required="true" Mask="false"/>
+  <Config Name="P2P SSH Port" Target="2222" Default="2222" Mode="tcp" Description="The port used by rsync to transfer files securely between Source and Client. Container Port: 2222" Type="Port" Display="always" Required="true" Mask="false"/>
+
+  <!-- Path Mappings -->
+  <Config Name="AppData Config Path" Target="/config" Default="/mnt/user/appdata/monarchaegis/config" Mode="rw" Description="Container Path: /config. Stores database, lua configurations, and SSH keys." Type="Path" Display="always" Required="true" Mask="false"/>
+  <Config Name="AppData Logs Path" Target="/logs" Default="/mnt/user/appdata/monarchaegis/logs" Mode="rw" Description="Container Path: /logs. Stores the live rsync, daemon, and UI tracking logs." Type="Path" Display="always" Required="true" Mask="false"/>
+  <Config Name="Source/Destination Data Path" Target="/source_data" Default="/mnt/user/" Mode="rw" Description="Container Path: /source_data. The actual filesystem location containing the files you want to sync or receive." Type="Path" Display="always" Required="true" Mask="false"/>
+
+  <!-- Variables -->
+  <Config Name="Container Role" Target="MONARCHAEGIS_ROLE" Default="source" Description="Container Variable: MONARCHAEGIS_ROLE. Set to 'source' (the sender GUI) or 'client' (the receiver GUI)." Type="Variable" Display="always" Required="true" Mask="false"/>
+  <Config Name="Internal SSH Port" Target="MONARCHAEGIS_SSH_PORT" Default="2222" Description="Container Variable: MONARCHAEGIS_SSH_PORT. Internal port for the SSH daemon. Must match the target of your P2P SSH Port mapping." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="Hash Workers" Target="MONARCHAEGIS_HASH_WORKERS" Default="" Description="Container Variable: MONARCHAEGIS_HASH_WORKERS. Number of parallel threads for baseline file hashing. Defaults to half of CPU cores (max 16). Increase for faster scans on high-core-count CPUs." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="Timezone" Target="TZ" Default="America/New_York" Description="Container Variable: TZ" Type="Variable" Display="advanced" Required="false" Mask="false"/>
+</Container>

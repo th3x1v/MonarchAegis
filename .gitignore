@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+venv/
+.venv/
+
+# Database files (runtime state — not source)
+*.db
+*.db-shm
+*.db-wal
+
+# Log and backup files
+*.log
+*.bak
+*.status
+
+# SSH keys (never commit private keys)
+config/keys/
+
+# Test data with large binaries
+Test_Back data/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Claude Code internal files
+.claude/
+
+# AI / editor tooling history
+.aider*
+
+# pytest
+.pytest_cache/
+
+# Private strategy/roadmap — never publish
+docs/internal/

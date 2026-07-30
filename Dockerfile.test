@@ -1,0 +1,9 @@
+# Test image: the production runtime image + the test-only tooling (pytest,
+# pytest-memray). Kept separate so the shipped image stays lean. Build with:
+#   docker build -f Dockerfile.test -t monarchaegis-test .
+# Run with (cwd must be /app so the app's relative static/ mount resolves):
+#   docker run --rm -v "$PWD/app":/app -v "$PWD/tests":/tests -w /app monarchaegis-test pytest /tests
+# Or just: ./run_tests.sh   (builds this image + runs the suite)
+FROM cthexiv/monarchaegis:latest
+COPY tests/requirements-dev.txt /tmp/requirements-dev.txt
+RUN pip install --no-cache-dir -r /tmp/requirements-dev.txt

@@ -1,0 +1,22 @@
+# MonarchAegis — example deployment.
+# This defines a SOURCE node. For a CLIENT (receiving) node, run the same image
+# on the other host with MONARCHAEGIS_ROLE=client (see docs/setup_guide.md).
+services:
+  monarchaegis:
+    image: cthexiv/monarchaegis:latest   # or: build: .
+    container_name: monarchaegis
+    restart: unless-stopped
+    ports:
+      - "5000:5000"     # Web UI
+      - "2222:2222"     # P2P SSH (rsync/tar transport between Source and Client)
+    volumes:
+      - /mnt/user/appdata/monarchaegis/config:/config:rw   # DB, keys, servers, known_hosts
+      - /mnt/user/appdata/monarchaegis/logs:/logs:rw        # optional; logs stream to the UI
+      # The data to sync (or receive). Must be rw. On Unraid, map a direct pool
+      # path (/mnt/cache/<share>) instead of /mnt/user/<share> for large bulk
+      # transfers — see docs/setup_guide.md.
+      - /mnt/user:/source_data:rw
+    environment:
+      - MONARCHAEGIS_ROLE=source                       # 'source' (sender) or 'client' (receiver)
+      - MONARCHAEGIS_PAIR_SECRET=change-me-same-on-both # identical on Source + Client
+      - TZ=America/New_York

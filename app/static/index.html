@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MonarchAegis Controller</title>
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+    <link rel="stylesheet" href="/static/css/style.css?v=12">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <header class="app-header">
+        <div class="container">
+            <a href="/" class="brand">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <path
+                        d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z">
+                    </path>
+                    <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                    <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                </svg>
+                MonarchAegis Controller
+            </a>
+
+            <div class="flex-between" style="gap: 1rem;">
+                <select id="role-toggle" class="form-control" style="width: auto; padding: 0.3rem 2rem 0.3rem 1rem; background-color: var(--bg-surface); cursor: pointer;" title="Toggle Container Operating Mode">
+                    <option value="source">Source Mode</option>
+                    <option value="client">Client Mode</option>
+                </select>
+            </div>
+        </div>
+    </header>
+
+    <main class="container fade-in">
+        <!-- Source Mode View -->
+        <div id="source-view">
+            <div class="flex-between" style="margin-bottom: 2rem;">
+                <div>
+                    <h1 style="display: flex; align-items: center; gap: 1rem;">
+                        Sync Targets Overview
+                        <span id="global-sync-status" class="status-indicator status-online"
+                            style="font-size: 0.9rem; font-weight: 500;">Checking...</span>
+                    </h1>
+                    <p class="text-muted">Manage active replication threads</p>
+                </div>
+                <div style="display: flex; gap: 1rem;">
+                    <button id="btn-manage-servers" class="btn btn-secondary">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" style="margin-right: 4px;">
+                            <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
+                            <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
+                            <line x1="6" y1="6" x2="6.01" y2="6"></line>
+                            <line x1="6" y1="18" x2="6.01" y2="18"></line>
+                        </svg>
+                        Servers & Keys
+                    </button>
+                    <button id="btn-add-source" class="btn btn-primary">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg>
+                        New Source
+                    </button>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="table-container">
+                    <table id="target-table">
+                        <thead>
+                            <tr>
+                                <th>Alias</th>
+                                <th>Source Path</th>
+                                <th>Destination</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="target-tbody">
+                            <tr>
+                                <td colspan="5" style="text-align: center;" class="text-muted">Loading targets...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Client Mode View -->
+        <div id="client-view" style="display: none;">
+            <div class="flex-between" style="margin-bottom: 2rem;">
+                <div>
+                    <h1>🛡️ Client Receiving Directories</h1>
+                    <p class="text-muted">Configure which directories will receive synced data from the Source</p>
+                </div>
+                <button id="btn-add-client-target" class="btn btn-primary" onclick="document.getElementById('client-add-form').style.display='block'">
+                    + Add Directory
+                </button>
+            </div>
+
+            <!-- Add Directory Form -->
+            <div id="client-add-form" class="card" style="display: none; margin-bottom: 1.5rem;">
+                <h2>Add Receiving Directory</h2>
+                <div class="form-group">
+                    <label for="client-target-alias">Alias</label>
+                    <input type="text" id="client-target-alias" class="form-control" placeholder="e.g. Media Library">
+                </div>
+                <div class="form-group">
+                    <label for="client-target-path">Absolute Path (inside container)</label>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <input type="text" id="client-target-path" class="form-control" placeholder="/mnt/data/media" style="flex: 1;">
+                        <button type="button" class="btn btn-secondary" onclick="openFileBrowser('local-root', 'client-target-path')">📂 Browse</button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                        <input type="checkbox" id="client-target-scan-now">
+                        Start baseline hash scan immediately
+                    </label>
+                    <p class="text-muted" style="margin: 0.25rem 0 0; font-size: 0.85rem;">
+                        Leave unchecked if this directory already contains a lot of data — the baseline
+                        reads every file once and can saturate the array while it runs. You can start it
+                        later from the table. Key pairing and receiving transfers work either way.
+                    </p>
+                </div>
+                <div style="display: flex; gap: 1rem;">
+                    <button class="btn btn-primary" onclick="addClientTarget()">Add Directory</button>
+                    <button class="btn btn-secondary" onclick="document.getElementById('client-add-form').style.display='none'">Cancel</button>
+                </div>
+            </div>
+
+            <!-- Configured Targets Table -->
+            <div class="card" style="margin-bottom: 1.5rem;">
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Alias</th>
+                                <th>Path</th>
+                                <th>Scan Status</th>
+                                <th>Progress</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="client-targets-tbody">
+                            <tr><td colspan="5" class="text-muted" style="text-align:center;">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Scan Readiness Banner -->
+            <div id="scan-readiness-banner" class="card" style="text-align: center; padding: 1.5rem;">
+                <p id="scan-readiness-text" class="text-muted">Checking scan readiness...</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- SSH Key Display Modal -->
+    <div id="ssh-key-modal" class="modal-overlay">
+        <div class="modal" style="max-width: 650px;">
+            <div class="modal-header">
+                <h2>🔑 SSH Private Key Generated</h2>
+                <p class="text-muted">Copy this key and paste it into the Source server's "Servers & Keys" panel.</p>
+            </div>
+            <div style="margin-bottom: 1rem;">
+                <p class="text-muted" style="font-size: 0.85rem; margin-bottom: 0.5rem;">This key is directory-scoped and can ONLY be used for rsync operations inside the target path.</p>
+                <textarea id="ssh-key-output" readonly class="form-control" style="font-family: monospace; font-size: 0.8rem; height: 220px; resize: none; background: var(--bg-base);"></textarea>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" onclick="copySSHKey()">📋 Copy to Clipboard</button>
+                <button class="btn btn-secondary" onclick="document.getElementById('ssh-key-modal').classList.remove('active')">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Source Modal -->
+    <div id="add-source-modal" class="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>Add Source Directory</h2>
+                <p class="text-muted">Start hashing a local directory before linking it to a Client.</p>
+            </div>
+
+            <form id="form-add-source">
+                <div class="form-group">
+                    <label for="source-name">Target Alias (No Spaces)</label>
+                    <input type="text" id="source-name" class="form-control" placeholder="e.g. backup_server_01" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="source-path">Source Path (Local Container Path)</label>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <input type="text" id="source-path" class="form-control"
+                            placeholder="Must be absolute inside container" required>
+                        <button type="button" class="btn btn-secondary"
+                            onclick="openFileBrowser('local', 'source-path')" style="padding: 0 0.8rem;"
+                            title="Browse Local Disk">📁</button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                        <input type="checkbox" id="source-scan-now" checked>
+                        Start baseline hash scan immediately
+                    </label>
+                    <p class="text-muted" style="margin: 0.25rem 0 0; font-size: 0.85rem;">
+                        Uncheck for very large directories to register the source without reading every
+                        file now — start the scan later from the dashboard. Hashes are only needed for
+                        Preview Sync verification; live syncing works either way.
+                    </p>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" id="btn-cancel-source" class="btn btn-secondary">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add Source</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Link Client Modal -->
+    <div id="link-client-modal" class="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>Link Client Connection</h2>
+                <p class="text-muted">Connect this source directory to a MonarchAegis Client node.</p>
+            </div>
+
+            <form id="form-link-client">
+                <p class="text-muted" style="font-size: 0.85rem; margin-bottom: 1rem;">🔗 <strong>Client Connection</strong> — Enter the Client server details and paste the SSH key generated from the Client's UI.</p>
+
+                <div style="display: flex; gap: 0.5rem;">
+                    <div class="form-group" style="flex: 3;">
+                        <label for="target-client-host">Client IP / Hostname</label>
+                        <input type="text" id="target-client-host" class="form-control" placeholder="192.168.1.100" required>
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label for="target-client-port">SSH Port</label>
+                        <input type="number" id="target-client-port" class="form-control" value="2222" required>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 0.5rem;">
+                    <div class="form-group" style="flex: 1;">
+                        <label for="target-client-user">SSH Username</label>
+                        <input type="text" id="target-client-user" class="form-control" placeholder="root" value="root" required>
+                    </div>
+                    <div class="form-group" style="flex: 2;">
+                        <label for="target-client-dest">Receiving Path (Exact path as shown on Client)</label>
+                        <input type="text" id="target-client-dest" class="form-control" placeholder="/mnt/user/Movies" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="target-client-key">SSH Private Key (paste from Client's 🔑 Generate Key)</label>
+                    <textarea id="target-client-key" class="form-control" required
+                        style="font-family: monospace; font-size: 0.8rem; height: 140px; resize: none;"
+                        placeholder="-----BEGIN OPENSSH PRIVATE KEY-----&#10;...&#10;-----END OPENSSH PRIVATE KEY-----"></textarea>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" id="btn-cancel-link" class="btn btn-secondary">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save & Start Syncing</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Save confirmation toast -->
+    <div id="save-toast"
+        style="display: none; position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: #4ade80; color: #000; padding: 10px 20px; border-radius: 5px; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.3); z-index: 9999; animation: slideDown 0.3s ease-out;">
+        ✓ Saved
+    </div>
+
+    <!-- Servers & Keys Modal -->
+    <div id="servers-modal" class="modal-overlay">
+        <div class="modal" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2>Servers & SSH Keys</h2>
+                <div style="display: flex; gap: 1rem; margin-top: 1rem;">
+                    <button id="tab-servers" class="btn btn-primary" style="flex: 1;">Servers</button>
+                    <button id="tab-keys" class="btn btn-secondary" style="flex: 1;">SSH Keys</button>
+                </div>
+            </div>
+
+            <!-- View: Servers -->
+            <div id="view-servers">
+                <div class="flex-between" style="margin-bottom: 1rem;">
+                    <h3>Saved Servers</h3>
+                    <button id="btn-show-add-server" class="btn btn-sm btn-secondary">+ New Server</button>
+                </div>
+                <div id="servers-list"
+                    style="max-height: 200px; overflow-y: auto; border: 1px solid var(--border-color); padding: 0.5rem; border-radius: 4px; background: var(--card-bg);">
+                    <!-- Server rows injected here -->
+                </div>
+
+                <form id="form-add-server"
+                    style="display: none; margin-top: 1rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">
+                    <h4>Add Remote Server</h4>
+                    <div class="form-group">
+                        <label>Alias</label>
+                        <input type="text" id="server-alias" class="form-control" required
+                            placeholder="e.g. Media Backup">
+                    </div>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <div class="form-group" style="flex: 2;">
+                            <label>Host/IP</label>
+                            <input type="text" id="server-host" class="form-control" required
+                                placeholder="192.168.1.100">
+                        </div>
+                        <div class="form-group" style="flex: 1;">
+                            <label>Port</label>
+                            <input type="number" id="server-port" class="form-control" value="22" required>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <div class="form-group" style="flex: 1;">
+                            <label>Username</label>
+                            <input type="text" id="server-user" class="form-control" required placeholder="root">
+                        </div>
+                        <div class="form-group" style="flex: 1;">
+                            <label>SSH Key</label>
+                            <select id="server-key" class="form-control" required>
+                                <option value="">Select a saved key...</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
+                        <button type="button" id="btn-cancel-add-server" class="btn btn-secondary"
+                            style="flex: 1;">Cancel</button>
+                        <button type="submit" class="btn btn-primary" style="flex: 1;">Save Server</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- View: Keys -->
+            <div id="view-keys" style="display: none;">
+                <div class="flex-between" style="margin-bottom: 1rem;">
+                    <h3>Saved SSH Keys</h3>
+                    <button id="btn-show-add-key" class="btn btn-sm btn-secondary">+ New Key</button>
+                </div>
+                <div id="keys-list"
+                    style="max-height: 200px; overflow-y: auto; border: 1px solid var(--border-color); padding: 0.5rem; border-radius: 4px; background: var(--card-bg);">
+                    <!-- Key rows injected here -->
+                </div>
+
+                <form id="form-add-key"
+                    style="display: none; margin-top: 1rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">
+                    <h4>Add SSH Key</h4>
+                    <div class="form-group">
+                        <label>Key Name</label>
+                        <input type="text" id="key-name" class="form-control" required
+                            placeholder="e.g. Unraid Root Key">
+                    </div>
+                    <div class="form-group">
+                        <label>Private Key (Paste RSA/Ed25519)</label>
+                        <textarea id="key-private" class="form-control" rows="6" required
+                            style="font-family: monospace; font-size: 0.8rem;"
+                            placeholder="-----BEGIN OPENSSH PRIVATE KEY-----..."></textarea>
+                    </div>
+                    <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
+                        <button type="button" id="btn-cancel-add-key" class="btn btn-secondary"
+                            style="flex: 1;">Cancel</button>
+                        <button type="submit" class="btn btn-primary" style="flex: 1;">Save Key</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Danger Zone -->
+            <div style="margin-top: 1.5rem; border-top: 1px solid var(--status-error, #c0392b); padding-top: 1rem;">
+                <h4 style="color: var(--status-error, #c0392b); margin: 0 0 0.25rem;">⚠️ Danger Zone</h4>
+                <p class="text-muted" style="font-size: 0.85rem; margin: 0 0 0.75rem;">
+                    Clears all SSH keys, authorized_keys, host-key pins, and server profiles so you can
+                    re-pair cleanly. Your hashes and directories are kept unless you tick full wipe.
+                    Run this on <strong>both</strong> the Source and the Client.
+                </p>
+                <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-size: 0.85rem; margin-bottom: 0.75rem;">
+                    <input type="checkbox" id="factory-reset-wipe-data">
+                    Full wipe — also delete the hash database, config, and all registered directories
+                </label>
+                <button type="button" id="btn-factory-reset" class="btn btn-sm"
+                    style="background: var(--status-error, #c0392b); color: #fff; border-color: var(--status-error, #c0392b);">
+                    Reset Pairing State
+                </button>
+            </div>
+
+            <div class="modal-footer" style="margin-top: 1.5rem;">
+                <button type="button" id="btn-close-servers-modal" class="btn btn-secondary">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- File Browser Modal -->
+    <div id="file-browser-modal" class="modal-overlay" style="z-index: 2000;">
+        <div class="modal" style="width: 90%; max-width: 700px;">
+            <div class="modal-header flex-between" style="align-items: center; margin-bottom: 1rem;">
+                <h2 id="fb-title">Browse Directory</h2>
+                <div id="fb-remote-controls" style="display: none; align-items: center; gap: 0.5rem;">
+                    <label class="text-muted" style="margin-bottom: 0;">Server:</label>
+                    <select id="fb-server-select" class="form-control" style="width: auto; padding: 0.3rem 0.5rem;">
+                        <option value="">Select Server...</option>
+                    </select>
+                </div>
+            </div>
+
+            <div
+                style="background: var(--bg-color); padding: 0.5rem; border-radius: 4px; display: flex; align-items: center; gap: 0.5rem; border: 1px solid var(--border-color); margin-bottom: 1rem;">
+                <button id="fb-up-btn" class="btn btn-sm btn-secondary" style="padding: 0.2rem 0.6rem;">&uarr;
+                    Up</button>
+                <input type="text" id="fb-current-path" class="form-control"
+                    style="flex: 1; border: none; background: transparent; font-family: monospace;" readonly>
+            </div>
+
+            <div id="fb-loading" style="display: none; text-align: center; padding: 2rem;" class="text-muted">Loading
+                directory contents...</div>
+            <div id="fb-error" style="display: none; color: var(--status-error); padding: 1rem; text-align: center;">
+            </div>
+
+            <div id="fb-list"
+                style="height: 300px; overflow-y: auto; border: 1px solid var(--border-color); background: var(--card-bg); border-radius: 4px;">
+                <!-- Directory items injected here -->
+            </div>
+
+            <div class="modal-footer" style="margin-top: 1.5rem;">
+                <button type="button" id="btn-fb-cancel" class="btn btn-secondary">Cancel</button>
+                <button type="button" id="btn-fb-select" class="btn btn-primary">Select Current Folder</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/app.js?v=12"></script>
+</body>
+
+</html>

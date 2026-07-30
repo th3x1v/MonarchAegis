@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Target Details - MonarchAegis Controller</title>
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+    <link rel="stylesheet" href="/static/css/style.css?v=9">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Target-specific styles */
+        .metrics-banner {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .metric-card {
+            background-color: var(--bg-surface);
+            padding: 1.5rem;
+            border-radius: var(--radius-lg);
+            border: var(--border-subtle);
+            text-align: center;
+        }
+
+        .metric-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--accent-primary);
+            line-height: 1;
+            margin-top: 0.5rem;
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            border-bottom: var(--border-subtle);
+            margin-bottom: 1.5rem;
+            gap: 2rem;
+        }
+
+        .tab {
+            padding: 1rem 0;
+            color: var(--text-secondary);
+            font-weight: 500;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .tab:hover {
+            color: var(--text-primary);
+        }
+
+        .tab.active {
+            color: var(--accent-primary);
+            border-bottom-color: var(--accent-primary);
+        }
+
+        .tab-pane {
+            display: none;
+        }
+
+        .tab-pane.active {
+            display: block;
+        }
+
+        /* Live Log Table */
+        .log-table-wrapper {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .log-table-wrapper table {
+            font-family: monospace;
+            font-size: 0.875rem;
+        }
+    </style>
+</head>
+
+<body>
+    <header class="app-header">
+        <div class="container flex-between">
+            <a href="/" class="brand">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="19" y1="12" x2="5" y2="12"></line>
+                    <polyline points="12 19 5 12 12 5"></polyline>
+                </svg>
+                Back to Command Center
+            </a>
+            <span id="target-id-display" class="brand" style="color: var(--text-secondary)">Loading...</span>
+        </div>
+    </header>
+
+    <main class="container fade-in">
+        <div class="metrics-banner">
+            <div class="metric-card"
+                style="display: flex; flex-direction: column; justify-content: space-between; align-items: center;">
+                <div class="text-muted text-uppercase">Connection State</div>
+                <div id="target-status" class="status-indicator status-offline"
+                    style="margin-top: 0.5rem; margin-bottom: 0.5rem;">Unknown</div>
+                <div style="display: flex; gap: 0.5rem; width: 100%;">
+                    <button id="btn-sync-now" class="btn btn-jewel"
+                        style="padding: 0.3rem; font-size: 0.8rem; border: 1px solid #4ade80; color: #4ade80; flex: 1;"
+                        title="Run one sync now: diff against the destination ledger, push the delta, and record it.">Sync Now</button>
+                    <button id="btn-verify-checksum" class="btn btn-secondary"
+                        style="padding: 0.3rem; font-size: 0.8rem; border: 1px solid #c084fc; color: #c084fc; flex: 1;"
+                        title="Dry-run rsync hash comparison to populate the Missing Files Tracker">Audit Missing Files (Dry Run)</button>
+                </div>
+                <div
+                    style="margin-top: 0.4rem; display: flex; align-items: center; gap: 0.4rem; font-size: 0.75rem; color: var(--text-muted); width: 100%; justify-content: center;">
+                    <input type="checkbox" id="chk-ignore-existing" checked style="cursor: pointer;">
+                    <label for="chk-ignore-existing" style="margin-bottom: 0; cursor: pointer;"
+                        title="Only checks for completely missing files. Uncheck this for a slow, deep cryptographic hash comparison of every byte.">Fast
+                        Missing-Only Check</label>
+                </div>
+                <div
+                    style="margin-top: 0.6rem; width: 100%; font-size: 0.75rem; color: var(--text-muted); display: flex; flex-direction: column; gap: 0.3rem;">
+                    <div style="display: flex; align-items: center; gap: 0.4rem; justify-content: center;">
+                        <label for="sel-schedule" style="margin-bottom: 0;">Schedule:</label>
+                        <select id="sel-schedule" class="btn btn-secondary"
+                            style="padding: 0.15rem 0.4rem; font-size: 0.75rem; cursor: pointer;"
+                            title="How often this target auto-syncs on the scheduler.">
+                            <option value="0">Manual only</option>
+                            <option value="3600">Every hour</option>
+                            <option value="21600">Every 6 hours</option>
+                            <option value="43200">Every 12 hours</option>
+                            <option value="86400">Daily</option>
+                        </select>
+                    </div>
+                    <div id="schedule-next" style="text-align: center;">Next run: —</div>
+                    <div id="schedule-last" style="text-align: center;">Last run: —</div>
+                    <div id="schedule-today" style="text-align: center;"
+                        title="Files transferred to this destination since midnight (local time). Resets nightly.">
+                        Today: —</div>
+                </div>
+            </div>
+            <div class="metric-card" style="display: flex; flex-direction: column; align-items: center;">
+                <div class="text-muted text-uppercase">Files Remaining</div>
+                <div id="files-remaining" class="metric-value" style="color: var(--status-online);">0
+                </div>
+            </div>
+            <div class="metric-card" style="display: flex; flex-direction: column; align-items: center;">
+                <div class="text-muted text-uppercase">Missing Files Tracker</div>
+                <div id="missing-count" class="metric-value"
+                    style="color: var(--status-warning); margin-bottom: 0.5rem;">0
+                </div>
+                <div style="display: flex; gap: 0.5rem; justify-content: center; width: 100%;">
+                    <button id="btn-export-csv" class="btn btn-secondary"
+                        style="padding: 0.3rem 0.8rem; font-size: 0.85rem; border: 1px solid #4ade80; color: #4ade80;"
+                        title="Download missing files list">Export CSV</button>
+                    <button id="btn-sync-missing" class="btn btn-jewel"
+                        style="padding: 0.3rem 1.2rem; font-size: 0.85rem; border: 1px solid #c084fc;">Recover Missing Files</button>
+                </div>
+            </div>
+            <div class="metric-card" style="display: flex; flex-direction: column; align-items: center;">
+                <div class="text-muted text-uppercase">Recent Errors</div>
+                <div id="error-count" class="metric-value" style="color: var(--status-error); margin-bottom: 0.5rem;">0
+                </div>
+                <button id="btn-ack-errors" class="btn btn-jewel"
+                    style="padding: 0.3rem 1.2rem; font-size: 0.85rem; border: 1px solid #0369a1;">Clear</button>
+            </div>
+
+            <div class="card" style="background-color: #000; border-color: #333; padding: 0; overflow: hidden;">
+                <div class="terminal-header"
+                    style="background-color: #1a1a1a; padding: 0.5rem 1rem; border-bottom: 1px solid #333; display: flex; align-items: center; justify-content: space-between;">
+                    <span id="terminal-job-name" class="text-muted"
+                        style="font-family: monospace; font-size: 0.85rem; color: #888;"></span>
+                    <button id="clear-logs" class="btn btn-secondary"
+                        style="padding: 0.2rem 0.6rem; font-size: 0.75rem; border-color: #444; color: #ccc;">Clear</button>
+                </div>
+                <pre id="terminal-output"
+                    style="margin: 0; padding: 1rem; max-height: 500px; height: 500px; overflow-y: auto; color: #34d399; font-family: monospace; font-size: 0.875rem; white-space: pre-wrap; word-wrap: break-word;"></pre>
+            </div>
+    </main>
+
+    <script src="/static/js/target.js?v=9"></script>
+</body>
+
+</html>

@@ -1,0 +1,26 @@
+# Build-context excludes. The image is published to a PUBLIC registry, so private
+# and dev-only files must never enter it.
+.git
+.gitignore
+.gitattributes
+.claude/
+.aider*
+.pytest_cache/
+__pycache__/
+*.pyc
+venv/
+.venv/
+env/
+# (tests/ is intentionally NOT excluded — the production Dockerfile never copies
+# it, and Dockerfile.test needs tests/requirements-dev.txt from the context.)
+# PRIVATE strategy/roadmap — must never ship in a public image:
+docs/internal/
+# Dev / packaging artifacts not needed at runtime:
+*.docx
+*.xml
+docker-compose.yml
+deploy.ps1
+run_tests.sh
+Dockerfile*
+requirements.txt
+rename_*.py

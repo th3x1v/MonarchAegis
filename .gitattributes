@@ -1,0 +1,10 @@
+# Enforce LF line endings for all text files (project runs on Linux)
+* text=auto eol=lf
+
+# Binaries — no line ending conversion
+*.png binary
+*.docx binary
+*.ico binary
+*.gif binary
+*.jpg binary
+*.jpeg binary

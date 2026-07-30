@@ -1,0 +1,4 @@
+# Test-only dependencies (NOT installed into the production image).
+# Installed on top of the runtime image by Dockerfile.test.
+pytest>=8.0
+pytest-memray>=1.5   # memray-backed memory assertions (Linux-only); tracemalloc is stdlib

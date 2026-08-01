@@ -65,7 +65,7 @@ Replication is **database-driven** and runs on a schedule (or on demand), not fr
 
 ## 2. Container Modes
 
-The same Docker image runs as either a **Source** or a **Client**, controlled by the `MONARCHAEGIS_ROLE` environment variable.
+The same Docker image runs as either a **Source** or a **Client**. The role is switched at any time from the **role dropdown in the web UI** (top of the dashboard) and is stored in the database. `MONARCHAEGIS_ROLE` only sets the **initial** role on first launch, before one has ever been chosen — once set in the UI, the stored value wins and the environment variable is ignored.
 
 | Mode | Role | What runs |
 |---|---|---|
@@ -184,7 +184,7 @@ All variables are optional unless marked **Required**. Defaults shown are the co
 
 | Variable | Default | Description |
 |---|---|---|
-| `MONARCHAEGIS_ROLE` | `source` | **Required.** Set to `source` or `client`. |
+| `MONARCHAEGIS_ROLE` | `source` | **Initial role only.** `source` or `client`. Applies on first launch; afterwards the role lives in the database and is changed from the UI dropdown (this variable is then ignored). |
 | `MONARCHAEGIS_CONFIG_PATH` | `/config/monarchaegis.conf.lua` | Legacy Lua target file. lsyncd is retired; this is now only an internal target store (read once at upgrade to migrate targets into the DB). |
 | `MONARCHAEGIS_DB_PATH` | `/config/monarchaegis.db` | SQLite database — the source of truth: `targets` (schedule/state), hashes, transfer history, settings. |
 | `MONARCHAEGIS_SCHEDULER_TICK_SEC` | `60` | How often (seconds) the source-mode scheduler checks for due targets. `0` disables the scheduler (Manual/Sync Now still work). |
@@ -474,7 +474,7 @@ No lsyncd daemon: replication is driven by the source-mode scheduler / **Sync No
 
 ### Nothing syncs / no scheduled runs happen
 
-Replication is initiated by the **source** role only. Check `MONARCHAEGIS_ROLE`: a container set to `client` receives pushes but never starts syncs itself — set it to `source` on the sending side. Then confirm the target has a schedule (or trigger **Sync Now**) in the source UI.
+Replication is initiated by the **source** role only. Check the role dropdown at the top of the UI — a container running as `client` receives pushes but never starts syncs itself. Switch it to `source` on the sending side (the dropdown is authoritative; `MONARCHAEGIS_ROLE` only applied on first launch). Then confirm the target has a schedule, or trigger **Sync Now**.
 
 ### "Access denied: path outside allowed directories" in file browser
 

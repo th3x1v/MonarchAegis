@@ -32,13 +32,16 @@ def legacy_names(name: str):
 
 def env(name: str, default=None):
     """Read a MONARCHAEGIS_* setting, falling back to its legacy name, then
-    `default`. An explicitly empty value still counts as set — only a genuinely
-    absent variable falls through."""
-    val = os.environ.get(name)
-    if val is not None:
-        return val
-    for legacy in legacy_names(name):
-        val = os.environ.get(legacy)
-        if val is not None:
+    `default`.
+
+    An EMPTY value is treated as unset. Container templates (Unraid, compose)
+    routinely pass optional variables through as empty strings when the operator
+    leaves the field blank, and "" is never a meaningful value for any setting
+    here — taking it literally turned an untouched optional field into a crash
+    (e.g. int("") for HASH_WORKERS).
+    """
+    for candidate in (name, *legacy_names(name)):
+        val = os.environ.get(candidate)
+        if val is not None and val.strip() != "":
             return val
     return default

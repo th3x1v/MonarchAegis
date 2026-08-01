@@ -38,9 +38,29 @@ def test_default_when_all_absent(monkeypatch):
     assert envcompat.env("MONARCHAEGIS_NOPE", "fallback") == "fallback"
 
 
-def test_empty_value_counts_as_set(monkeypatch):
+def test_empty_value_is_treated_as_unset(monkeypatch):
+    """Unraid/compose pass blank optional fields through as empty strings. Taking
+    "" literally crashed startup (int("") for HASH_WORKERS), so empty falls back."""
     monkeypatch.setenv("MONARCHAEGIS_EMPTY", "")
-    assert envcompat.env("MONARCHAEGIS_EMPTY", "default") == ""
+    assert envcompat.env("MONARCHAEGIS_EMPTY", "default") == "default"
+
+
+def test_whitespace_only_is_treated_as_unset(monkeypatch):
+    monkeypatch.setenv("MONARCHAEGIS_BLANK", "   ")
+    assert envcompat.env("MONARCHAEGIS_BLANK", "default") == "default"
+
+
+def test_empty_current_falls_back_to_legacy(monkeypatch):
+    # blank new-style var must not shadow a real legacy value
+    monkeypatch.setenv("MONARCHAEGIS_HASH_MODE", "")
+    monkeypatch.setenv("LSYNCD_HASH_MODE", "metadata")
+    assert envcompat.env("MONARCHAEGIS_HASH_MODE") == "metadata"
+
+
+def test_int_setting_with_blank_env_uses_default(monkeypatch):
+    """The exact startup crash: Unraid ships HASH_WORKERS with Default="" ."""
+    monkeypatch.setenv("MONARCHAEGIS_HASH_WORKERS", "")
+    assert int(envcompat.env("MONARCHAEGIS_HASH_WORKERS", 8)) == 8
 
 
 def test_legacy_names_mapping():

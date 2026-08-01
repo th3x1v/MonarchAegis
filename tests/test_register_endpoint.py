@@ -109,3 +109,36 @@ def test_clear_on_success_gate():
     assert len(db.get_missing_files(gate_tid)) == 2   # failure keeps the list
     apply_gate(0)
     assert len(db.get_missing_files(gate_tid)) == 0   # success clears it
+
+
+# --- client directory listing reports the LIVE ledger count ---
+
+def test_client_targets_report_tracked_count(monkeypatch):
+    """Received files are registered straight into the ledger and never touch the
+    scanner's baseline counters — the UI must read the ledger, or transfers stay
+    invisible (client showed "48 total" while the ledger held 567)."""
+    import asyncio
+    import json as _json
+    import main
+
+    main.db.set_setting("client_targets", _json.dumps(
+        [{"id": "client_abc", "alias": "Media2", "path": "/source_data/Music"}]))
+    # 2 from a baseline, 3 more arriving later via register-after-transfer
+    main.db.batch_upsert_file_hashes([
+        ("client_abc", f"song{i}.flac", 10, 1.0, f"h{i}", False) for i in range(5)])
+
+    res = asyncio.run(main.list_client_targets())
+    t = next(x for x in res["targets"] if x["id"] == "client_abc")
+    assert t["tracked"] == 5
+
+
+def test_client_targets_tracked_zero_when_empty(monkeypatch):
+    import asyncio
+    import json as _json
+    import main
+
+    main.db.set_setting("client_targets", _json.dumps(
+        [{"id": "client_empty", "alias": "New", "path": "/source_data/New"}]))
+    res = asyncio.run(main.list_client_targets())
+    t = next(x for x in res["targets"] if x["id"] == "client_empty")
+    assert t["tracked"] == 0

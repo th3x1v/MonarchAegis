@@ -773,9 +773,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 const rate = (status === 'scanning' && scan.files_per_sec)
                     ? ` — ${scan.files_per_sec}/s, ${scan.mb_per_sec || 0} MB/s`
                     : '';
+                // Live ledger count — includes files received from a Source, which
+                // never touch the scanner's baseline counters. While a scan is
+                // actually running we still show its live progress instead.
+                const tracked = (typeof t.tracked === 'number')
+                    ? `${t.tracked.toLocaleString()} file${t.tracked === 1 ? '' : 's'} tracked`
+                    : null;
+                const scanCounters = scan.total
+                    ? `${scan.hashed || 0} hashed, ${scan.skipped || 0} cached (${scan.total} total)${rate}`
+                    : null;
                 const progress = status === 'pending'
                     ? 'Baseline deferred — start when ready'
-                    : (scan.total ? `${scan.hashed || 0} hashed, ${scan.skipped || 0} cached (${scan.total} total)${rate}` : '—');
+                    : status === 'scanning'
+                        ? (scanCounters || 'Scanning…')
+                        : (tracked || scanCounters || '—');
 
                 // Offer a "Start Scan" button only while the baseline is still deferred.
                 const scanBtn = status === 'pending'

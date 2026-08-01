@@ -498,6 +498,18 @@ class DatabaseManager:
             ''', (target_id, filepath))
             conn.commit()
 
+    def count_hashes_by_target(self) -> dict:
+        """{target_id: tracked_file_count} across the whole ledger.
+
+        This is the live truth about what a directory holds. The scanner's
+        in-memory scan_status counters only describe the last baseline pass, so
+        files that arrive later via register-after-transfer never move them —
+        reporting those counters as "progress" made received files invisible."""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT target_id, COUNT(*) FROM file_hashes GROUP BY target_id")
+            return {row[0]: row[1] for row in cursor.fetchall()}
+
     def get_all_hashes(self, target_id: str) -> List[dict]:
         """Returns the complete hash table for a specific target to be sent across the network."""
         with self.get_connection() as conn:

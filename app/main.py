@@ -605,12 +605,21 @@ class ClientTargetModel(BaseModel):
 
 @app.get("/api/client/targets")
 async def list_client_targets():
-    """Returns the Client's configured receiving directories."""
+    """Returns the Client's configured receiving directories, each annotated with
+    `tracked` — how many files the ledger currently holds for it.
+
+    Reported from the ledger rather than the scanner's counters because files
+    received from a Source are registered directly into the DB; the scan counters
+    only ever describe the last baseline pass, so transfers were invisible in the
+    UI even though they had landed."""
     raw = db.get_setting("client_targets", "[]")
     try:
         targets = json.loads(raw)
     except json.JSONDecodeError:
         targets = []
+    counts = await asyncio.to_thread(db.count_hashes_by_target)
+    for t in targets:
+        t["tracked"] = counts.get(t.get("id"), 0)
     return {"targets": targets}
 
 @app.post("/api/client/targets")

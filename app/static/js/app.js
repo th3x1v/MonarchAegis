@@ -306,6 +306,8 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const clientHost = document.getElementById('target-client-host').value;
             const clientPort = document.getElementById('target-client-port').value || '2222';
+            // Optional: blank means "use the default 5000".
+            const clientApiPort = document.getElementById('target-client-api-port').value.trim();
             const clientUser = document.getElementById('target-client-user').value || 'root';
             const clientDest = document.getElementById('target-client-dest').value.trim();
             const clientKey = document.getElementById('target-client-key').value;
@@ -339,7 +341,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         host: clientHost,
                         user: clientUser,
                         port: parseInt(clientPort),
-                        key_id: keyId
+                        key_id: keyId,
+                        // null = not specified -> server falls back to the default
+                        api_port: clientApiPort ? parseInt(clientApiPort) : null
                     })
                 });
             }

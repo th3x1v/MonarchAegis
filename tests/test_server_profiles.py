@@ -60,3 +60,35 @@ def test_remove_server_keeps_key_shared_by_another_profile(server_env):
 
 def test_remove_missing_server_is_noop(server_env):
     assert server_env.mgr.remove_server_and_key("srv_does_not_exist") is False
+
+
+# --- optional per-profile Client API port ---
+
+def test_api_port_omitted_when_not_specified(server_env):
+    sid = server_env.mgr.add_server("A", "10.0.0.2", "root", 2222, "k1")
+    assert "api_port" not in server_env.mgr.get_server(sid)   # absent, not 0/empty
+
+
+def test_api_port_stored_when_specified(server_env):
+    sid = server_env.mgr.add_server("A", "10.0.0.2", "root", 2222, "k1", api_port=5001)
+    assert server_env.mgr.get_server(sid)["api_port"] == 5001
+
+
+def test_relink_without_api_port_keeps_existing(server_env):
+    """Re-linking with the optional field left blank must not wipe a custom port."""
+    sid = server_env.mgr.add_server("A", "10.0.0.2", "root", 2222, "k1", api_port=5001)
+    server_env.mgr.add_server("A renamed", "10.0.0.2", "root", 2222, "k1")   # blank
+    assert server_env.mgr.get_server(sid)["api_port"] == 5001
+
+
+def test_client_api_base_defaults_and_overrides():
+    import sync_engine
+    # not specified -> global default (5000)
+    assert sync_engine.client_api_base({"host": "10.0.0.2"}) == \
+        f"http://10.0.0.2:{sync_engine.CLIENT_API_PORT}"
+    # specified -> profile wins
+    assert sync_engine.client_api_base({"host": "10.0.0.2", "api_port": 5001}) == \
+        "http://10.0.0.2:5001"
+    # explicit null/0 is treated as unset, not as port 0
+    assert sync_engine.client_api_base({"host": "10.0.0.2", "api_port": None}) == \
+        f"http://10.0.0.2:{sync_engine.CLIENT_API_PORT}"

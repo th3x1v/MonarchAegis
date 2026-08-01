@@ -243,6 +243,11 @@
                         <label for="target-client-port">SSH Port</label>
                         <input type="number" id="target-client-port" class="form-control" value="2222" required>
                     </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label for="target-client-api-port">Web UI Port <span class="text-muted" style="font-weight: normal;">(optional)</span></label>
+                        <input type="number" id="target-client-api-port" class="form-control" placeholder="5000"
+                               title="The Client's web UI / API port. Leave blank for the default 5000 — only set this if you changed the Client's Web UI port mapping.">
+                    </div>
                 </div>
 
                 <div style="display: flex; gap: 0.5rem;">

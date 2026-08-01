@@ -204,6 +204,20 @@ def get_current_role() -> str:
     """Returns the current container mode: 'source' or 'client'."""
     return db.get_setting("role", env("MONARCHAEGIS_ROLE", "source")).lower()
 
+
+def _api_base_for_host(host_ip: str) -> str:
+    """Client API root for a bare host, honoring the matching server profile's
+    optional `api_port`. Used by the legacy verify/recovery paths, which only
+    carry a host string; the DB-driven engine resolves this from the profile
+    directly (sync_engine.client_api_base)."""
+    try:
+        for s in server_mgr.list_servers():
+            if host_ip in (s.get("host"), f"{s.get('user')}@{s.get('host')}"):
+                return sync_engine.client_api_base(s)
+    except Exception:
+        pass
+    return f"http://{host_ip}:{sync_engine.CLIENT_API_PORT}"
+
 # Ensure log paths exist before starting anything
 import log_router as log_router_module
 LOG_PATH = log_router_module.LOG_PATH
@@ -492,6 +506,10 @@ class ServerModel(BaseModel):
     user: str
     port: int
     key_id: str
+    # The Client's web UI / API port. Optional — None means "use the default"
+    # (MONARCHAEGIS_CLIENT_API_PORT, itself defaulting to 5000). Set per-profile
+    # so several Clients on different ports can be paired from one Source.
+    api_port: Optional[int] = None
 
 # H3: Response schemas for P2P client API calls — validate before accessing fields.
 # extra='ignore' tolerates unknown fields from newer peer versions.
@@ -953,7 +971,8 @@ async def delete_key(key_id: str):
 
 @app.post("/api/servers")
 async def add_server(server: ServerModel):
-    server_id = server_mgr.add_server(server.alias, server.host, server.user, server.port, server.key_id)
+    server_id = server_mgr.add_server(server.alias, server.host, server.user, server.port,
+                                      server.key_id, api_port=server.api_port)
     return {"status": "success", "id": server_id}
 
 @app.get("/api/servers")
@@ -1296,7 +1315,8 @@ async def repairkey_target(target_id: str):
     # Call the client's pair API to regenerate a scoped keypair.
     # Include X-Pair-Secret if configured so this machine-to-machine call
     # bypasses the client's IP rate limit.
-    client_api_url = f"http://{host_ip}:5000/api/client/pair"
+    api_base = sync_engine.client_api_base(srv) if srv else _api_base_for_host(host_ip)
+    client_api_url = f"{api_base}/api/client/pair"
     pair_headers = {}
     if _PAIR_SECRET:
         pair_headers["X-Pair-Secret"] = _PAIR_SECRET
@@ -1412,16 +1432,16 @@ async def verify_target(target_id: str, ignore_existing: bool = False):
             dest_str = target_config.get("target")
             
             target_path = dest_str
-            # WARNING: This is a simplfied placeholder assumption for P2P routing.
-            # We assume the Client is running the FastAPI server on port 5000 at the destination IP.
-            # In a production build, this would easily be configurable per-target.
+            # The Client's API port comes from its server profile (optional
+            # `api_port`, else the MONARCHAEGIS_CLIENT_API_PORT default) — see
+            # _api_base_for_host below.
             if '@' in dest_str or ':/' in dest_str:
                 host_ip = dest_str.split('@')[-1].split(':')[0]
                 target_path = dest_str.split(':', 1)[-1]
             else:
                 host_ip = "127.0.0.1" # Local test
                 
-            client_api_url = f"http://{host_ip}:5000/api/client/diff"
+            client_api_url = f"{_api_base_for_host(host_ip)}/api/client/diff"
             
             # 2. Fire payload to Client
             import requests
@@ -1639,7 +1659,7 @@ async def sync_missing(target_id: str):
                 try:
                     import requests
                     resp = requests.post(
-                        f"http://{reg_info['host_ip']}:5000/api/client/register",
+                        f"{_api_base_for_host(reg_info['host_ip'])}/api/client/register",
                         json={"target_id": t_id, "target_path": reg_info["target_path"],
                               "files": reg_info["files"]},
                         timeout=30,

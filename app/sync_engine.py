@@ -85,19 +85,29 @@ def _run_rsync(cmd: list, say=lambda _m: None) -> tuple:
 
 # --- Connection resolution ---
 
+def client_api_base(server: dict) -> str:
+    """The Client's API root for a servers.json profile.
+
+    The profile's optional `api_port` wins; otherwise fall back to the global
+    MONARCHAEGIS_CLIENT_API_PORT (default 5000). Per-profile is what allows one
+    Source to talk to several Clients published on different ports — a single
+    global port silently sends every diff to the wrong container."""
+    return f"http://{server['host']}:{int(server.get('api_port') or CLIENT_API_PORT)}"
+
+
 def _resolve_connection(server: dict):
     """From a servers.json profile, derive the pieces a push needs.
 
     Returns (host_ip, api_base, physical_dest, rsh_arg). The physical rsync
     destination is the rrsync jail root "user@host:/" (the jail maps it to the
-    real receiving dir); the Client API lives at http://host:5000.
+    real receiving dir); the Client API lives at the profile's api_port.
     """
     host = server["host"]
     user = server.get("user", "root")
     port = int(server.get("port", 22))
     key_id = server.get("key_id")
 
-    api_base = f"http://{host}:{CLIENT_API_PORT}"
+    api_base = client_api_base(server)
     physical_dest = f"{user}@{host}:/"
 
     rsh = f"ssh -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile={KNOWN_HOSTS_PATH}"

@@ -264,9 +264,14 @@ class ServerManager:
         with open(SERVERS_JSON, "w") as f:
             json.dump(servers, f, indent=4)
 
-    def add_server(self, alias: str, host: str, user: str, port: int, key_id: str) -> str:
+    def add_server(self, alias: str, host: str, user: str, port: int, key_id: str,
+                   api_port: int = None) -> str:
         """Add a remote server profile, or update the one for the same destination
         AND key. Identity is (host, user, key_id) — NOT host+user alone.
+
+        `api_port` is the Client's web UI / API port and is OPTIONAL: None means
+        "use the default" (see sync_engine.CLIENT_API_PORT). Storing it per profile
+        lets one Source pair with Clients published on different ports.
 
         A directory-jailed setup that replicates several shares to a single
         destination host uses a DISTINCT key per share (each key = one rrsync/tar
@@ -284,19 +289,26 @@ class ServerManager:
                     and s.get("key_id") == key_id):
                 s["alias"] = alias
                 s["port"] = port
+                # Only overwrite when a value was given, so re-linking without
+                # filling the optional field can't silently reset a custom port.
+                if api_port:
+                    s["api_port"] = int(api_port)
                 self._write_servers(servers)
                 return s["id"]
 
         # New key (or new host) -> its own profile.
         server_id = f"srv_{uuid.uuid4().hex[:8]}"
-        servers.append({
+        profile = {
             "id": server_id,
             "alias": alias,
             "host": host,
             "user": user,
             "port": port,
             "key_id": key_id,
-        })
+        }
+        if api_port:
+            profile["api_port"] = int(api_port)   # omitted entirely when unset
+        servers.append(profile)
         self._write_servers(servers)
         return server_id
 

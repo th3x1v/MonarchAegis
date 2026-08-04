@@ -23,6 +23,7 @@ calls are isolated in small module functions (_post_json / _run_rsync) so tests
 can drive the orchestration without a real peer or SSH.
 """
 import os
+import errno
 from envcompat import env
 import time
 import json
@@ -53,6 +54,13 @@ TRANSPORT = env("MONARCHAEGIS_TRANSPORT", "rsync").lower()
 # this fraction of the batch. A few vanished files is normal media-manager churn.
 VANISHED_ABORT_MIN = int(env("MONARCHAEGIS_VANISHED_ABORT_MIN", "10"))
 VANISHED_ABORT_RATIO = float(env("MONARCHAEGIS_VANISHED_ABORT_RATIO", "0.5"))
+# Where the whole-diff tarball is staged before transfer. The default system temp
+# (/tmp) is the container's overlay filesystem — on Unraid that is the small Docker
+# vDisk, not the data array — so a large diff fails with ENOSPC there regardless of
+# how much room the array has. Default to a mapped, persistent volume (/config),
+# outside /source_data so the hash scanner never sees it. Point this at a bigger
+# mount (e.g. an array path) if a single diff can exceed the appdata pool.
+TAR_TMPDIR = env("MONARCHAEGIS_TAR_TMPDIR", "/config/tmp")
 
 
 # --- Isolated I/O (monkeypatched in tests) ---
@@ -166,7 +174,8 @@ def _build_tar(source_path: str, missing: list):
     receiver would reject. The caller must delete tar_path."""
     src_root = source_path.rstrip("/")
     included, vanished = [], []
-    fd, tar_path = tempfile.mkstemp(prefix="synctar_", suffix=".tar")
+    os.makedirs(TAR_TMPDIR, exist_ok=True)
+    fd, tar_path = tempfile.mkstemp(prefix="synctar_", suffix=".tar", dir=TAR_TMPDIR)
     os.close(fd)
     try:
         with tarfile.open(tar_path, "w") as tar:
@@ -246,6 +255,12 @@ def _run_tar_transfer(target_id, source_path, server, missing, say=lambda _m: No
     try:
         tar_path, digest, size, included, vanished = _build_tar(source_path, missing)
     except OSError as e:
+        if e.errno == errno.ENOSPC:
+            raise SyncError(
+                f"tar-stream build failed: no space to stage the diff tarball in "
+                f"{TAR_TMPDIR}. This is the staging volume, not the destination — "
+                f"free space there or set MONARCHAEGIS_TAR_TMPDIR to a larger mapped "
+                f"path. ({e})")
         raise SyncError(f"tar-stream build failed: {e}")
 
     if vanished:

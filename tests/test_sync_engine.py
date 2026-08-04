@@ -122,6 +122,24 @@ def test_build_tar_roundtrips_through_receiver(tmp_path):
     assert (jail / "sub" / "b.mkv").read_bytes() == b"world!!"
 
 
+def test_build_tar_stages_in_configured_tmpdir(tmp_path, monkeypatch):
+    """The diff tarball must be staged in TAR_TMPDIR, not the system /tmp (which on
+    Unraid is the small Docker vDisk — a large diff there fails with ENOSPC even
+    though the array has room). Regression guard for that production bug."""
+    import os
+    src = tmp_path / "src"; src.mkdir()
+    (src / "a.mkv").write_bytes(b"hello")
+    staging = tmp_path / "staging"          # does not exist yet
+    monkeypatch.setattr(sync_engine, "TAR_TMPDIR", str(staging))
+
+    tar_path, *_ = sync_engine._build_tar(str(src), ["a.mkv"])
+    try:
+        assert staging.is_dir()             # created on demand
+        assert os.path.dirname(tar_path) == str(staging)
+    finally:
+        os.remove(tar_path)
+
+
 def test_run_tar_transfer_raises_on_receiver_error(tmp_path, monkeypatch):
     """A non-success receiver reply is surfaced as SyncError (recorded, retried)."""
     import pytest

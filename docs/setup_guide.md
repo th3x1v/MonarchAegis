@@ -221,6 +221,7 @@ All variables are optional unless marked **Required**. Defaults shown are the co
 | `MONARCHAEGIS_HASH_SAMPLE_MB` | `16` | Bytes (in MB) read from the head and tail of each file in `sampled` mode (and the non-media fallback of `metadata` mode). |
 | `MONARCHAEGIS_FFPROBE_TIMEOUT` | `30` | Seconds to wait for an `ffprobe` call in `metadata` mode before falling back to a content hash for that file. |
 | `MONARCHAEGIS_TRANSPORT` | `rsync` | Push transport (**Source** mode). `rsync` = per-file, resumable, delta (default). `tar` = the whole diff as ONE integrity-checked tar over ONE SSH connection (see below). Global for now — a per-target selector is planned. |
+| `MONARCHAEGIS_TAR_TMPDIR` | `/config/tmp` | Where the `tar` transport stages the whole-diff tarball **before** transfer — this is the staging volume, **not** the destination. The default system temp (`/tmp`) is the container's overlay filesystem (on Unraid, the small Docker vDisk), so a large diff fails with `No space left on device` there even when the array has room. Defaults to a mapped, persistent volume; point it at a larger mapped path (e.g. an array path) if a single diff can exceed the appdata pool. |
 | `MONARCHAEGIS_PAIR_RATE_MAX` | `10` | Max pairing requests per IP per window (see below). |
 | `MONARCHAEGIS_PAIR_RATE_WINDOW` | `60` | Rate limit window in seconds. |
 | `MONARCHAEGIS_PAIR_RATE_MAX_KEYS` | `2000` | Max distinct source IPs tracked in memory. Oldest IP evicted when full so new IPs are never hard-blocked. |
